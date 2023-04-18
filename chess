@@ -1,0 +1,130 @@
+import chess
+import chess.pgn
+
+count = 0
+
+class ChessEngine:
+
+    def __init__(self):
+        self.chess_table = chess.Board()
+        self.move_log = []
+
+    def is_game_over(self):
+        return self.chess_table.is_game_over(claim_draw=True)
+
+    def which_players_move(self):
+        return 'Ход белых (большие буквы)' if self.chess_table.turn else 'Ход черных (маленькие буквы)'
+
+    def upload_game(self, path_to_game):
+        pgn = open(path_to_game)
+        first_game = chess.pgn.read_game(pgn)
+        self.chess_table = first_game.board()
+        for move in first_game.mainline_moves():
+            self.chess_table.push(move)
+
+    def print_field(self):
+        pieces_row_series = self.chess_table.__str__().split('\n')
+        print("\n    a b c d e f g h   \n")
+        for i in range(8):
+            print(8 - i, ' ', pieces_row_series[i])
+
+    def can_handle_move(self, uci_move_string):
+        try:
+            global count
+            uci_move = chess.Move.from_uci(uci_move_string)
+            count += 1
+        except chess.InvalidMoveError:
+            print('Ввод некорректный лиибо выходит за границы игрового поля.')
+            return False
+        if self.is_game_over():
+            print('Игра завершена.')
+            return False
+        if uci_move not in self.chess_table.legal_moves:
+            print('По правилам игры вы не можете так сходить.')
+            count -= 1
+            return False
+        self.move_log.append(uci_move)
+        self.chess_table.push(uci_move)
+        return True
+
+    def get_available_moves(self, square):
+        moves = []
+        opponent_moves = []
+        for move in self.chess_table.legal_moves:
+            if move.from_square == chess.parse_square(square):
+                moves.append(move)
+                if self.chess_table.piece_at(move.to_square) is not None and self.chess_table.piece_at(move.to_square).color != self.chess_table.turn:
+                    opponent_moves.append(move)
+        return moves, opponent_moves
+
+    
+    def is_king_in_check(self):
+        return self.chess_table.is_check()
+
+    def roll_back_the_move(self, num_moves):
+        global count
+        if count >= num_moves:
+            count -= num_moves
+            for _ in range(num_moves):
+                self.chess_table.pop()
+        else:
+            print('Данное число превышает количество ходов.')
+
+def get_what_would_player_like_to_do(player_token):
+    player_answer = input(player_token + "\nВыберите соответствующую цифру\n1. Новая игра\n2. Следующий ход\n3. Вернуться назад\n4. Остановить игру\n> ")
+    global count
+    print(f'Количество ходов: {count}')
+    try:
+        return int(player_answer)
+    except:
+        return 4
+
+
+def get_where_would_player_like_to_go(player_token):
+    player_answer = input(player_token + " - Введите значение фигуры, о которой хотите узнать допустимые ходы и доступные для взятия фигуры соперника.\n> ")
+    return player_answer
+
+
+def ask_to_continue():
+    input("Чтобы продолжить, нажмите enter\n> ")
+
+
+def start_engine():
+    engine = ChessEngine()
+
+    command = 1
+    while command != 4:
+        engine.print_field()
+        command = get_what_would_player_like_to_do(engine.which_players_move())
+
+        if command == 1:
+            engine = ChessEngine()
+
+        if command == 2:
+            move_from_square = get_where_would_player_like_to_go(engine.which_players_move())
+            available_moves, opponent_moves = engine.get_available_moves(move_from_square)
+            print(f"Доступные ходы: {', '.join([move.uci() for move in available_moves])}")
+            if not opponent_moves:
+                print('Фигур соперника для взятия нет.')
+            else:
+                print(f"Фигуры соперника, которые могут быть взяты: {', '.join([move.uci() for move in opponent_moves])}")d
+            selected_move = input("Введите клетку, где стоит фигура и куда хотите ее переместить: ")
+            if engine.can_handle_move(selected_move):
+                pass
+            else:
+                ask_to_continue()
+        if command == 3:
+            num_moves = int(input('На какое количество ходов вы хотите вернуться?'))
+            engine.roll_back_the_move(num_moves)
+
+
+def preview_game(path_to_file):
+    path_to_file
+
+
+def main():
+    start_engine()
+
+
+if __name__ == '__main__':
+    main()
